@@ -1,0 +1,15 @@
+{
+    "extends": "./tsconfig.json",
+    "target": "ESNext",
+    "module": "ESNext",
+    "compilerOptions": {
+        "outDir": "./lib/esm",
+        "declaration": true, /* Generates corresponding '.d.ts' file. */
+        "module": "ESNext",
+        "target": "ESNext"
+    },
+    "exclude": [
+        "test/**/*.spec.ts",
+        "test/cjs/*"
+    ]
+}
