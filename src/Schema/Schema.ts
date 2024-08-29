@@ -1,5 +1,30 @@
 import { processParams, processType } from '../Process.js';
 
+export enum modifyBrxMode {
+  DELETE,
+  UPDATE,
+  CREATE,
+  CLONE,
+  OP,
+}
+export interface brxModify {
+  modifyBrxMode: modifyBrxMode;
+  brxId: string;
+  brx?: brxObjectMap;
+  schema?: SchemaMap;
+}
+
+export interface modifyBrxResponse {
+  httpResponse?: queryHttpResponse;
+}
+
+export interface queryHttpResponse {
+  isError?: boolean;
+  statusMsg?: string;
+  brxId?: string,
+  cloned_from?: string,
+}
+
 export class BRKBuilderObject {
   brx: GetSchemaObject
   schema: brxFieldData
@@ -9,6 +34,8 @@ export class BRKBuilderObject {
 
 export interface GetSchemaSuccess { isError: boolean; statusMsg: string; brkObject: string; }
 export interface GetSchemaError { isError: boolean; errorID: string; statusMsg: string; }
+export interface ModifySuccess { isError: boolean; statusMsg: string; }
+export interface ModifyError { isError: boolean; errorID: string; statusMsg: string; }
 
 export interface RunResult {
   brxId: string;
@@ -98,17 +125,9 @@ export function objToMap(obj: { [key: string]: schema }): Map<string, schema> {
 export function objToMapField(obj: { [key: string]: schemaField }): Map<string, schemaField> {
   return new Map(Object.entries(obj));
 }
-
-export enum modifyBrxMode {
-  DELETE,
-  UPDATE,
-  CREATE,
-}
-
 export interface brxPrompt {
   prompt: Map<string, string>;
 }
-
 export interface brxObject {
   brxName: string;
   brxId: string;
@@ -116,4 +135,23 @@ export interface brxObject {
   prompt: brxPrompt;
   processParams: processParams;
   dependantBrxIds: Map<string, string>;
+}
+
+export interface brxObjectMap {
+  brxName: string;
+  brxId: string;
+  description: string;
+  prompt: {
+    prompt: {
+      _isMap: boolean;
+      data: Array<[string, string]>;
+    };
+  };
+  processParams: {
+    processType: number;
+  };
+  dependantBrxIds: {
+    _isMap: boolean;
+    data: Array<[string, string]>;
+  };
 }

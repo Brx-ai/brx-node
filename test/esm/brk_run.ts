@@ -1,4 +1,4 @@
-import BRX, { BRK } from '../../src/index.js';
+import BRX, { BRK, mapReplacer } from '../../lib/esm/src/index.js';
 import dotenv from 'dotenv';
 dotenv.config({ path: '../../.env' });
 

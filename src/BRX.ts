@@ -3,7 +3,7 @@ import axios, { Axios, AxiosError } from 'axios';
 import { BRK } from './BRK.js';
 import { mapReplacer } from './Sockets.js';
 import { queryStreamRequest } from './oldFunctions.js';
-import { GetSchemaError, GetSchemaObject, GetSchemaSuccess, inputfield, objToMap, objToMapField, RunResult } from './Schema/Schema.js';
+import { GetSchemaError, GetSchemaObject, GetSchemaSuccess, inputfield, objToMap, objToMapField, RunResult, brxModify, modifyBrxResponse, ModifyError, ModifySuccess, brxFieldData } from './Schema/Schema.js';
 
 const isNode = () => typeof process !== 'undefined' && !!process.versions && !!process.versions.node;
 
@@ -387,6 +387,48 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
     return result as RunResult[];
   }
 
+  async modify(modifyRequest: brxModify): Promise<ModifySuccess | ModifyError> {
+    try {
+      const url = this._MODIFY_CONN_STRING;
+      const response = await axios.post(url, modifyRequest, {
+        headers: {
+          key: this.accessToken,
+          'Content-Type': 'application/json'
+        }
+      });
+      const ModifyResponse: ModifySuccess | ModifyError = response.data.modifyBrxResponse.httpResponse;
+      if (this.verbose) {
+        console.log("MODIFY RESPONSE:")
+        console.log(ModifyResponse)
+      }
+      if (ModifyResponse.isError == true) {
+        let ErrorMessage = ''
+        const ErrorPointer = (ModifyResponse as ModifyError).statusMsg
+        if (ErrorPointer == 'no emails') {
+          ErrorMessage = 'Unauthorized: Check BRK ID or BRK Access'
+        } else {
+          ErrorMessage = ErrorPointer
+        }
+        throw new Error(ErrorMessage)
+      }
+      return ModifyResponse
+    } catch (error: AxiosError | any) {
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status == 401) {
+          throw new Error(JSON.stringify('Unauthorized: API Key Invalid'))
+        }
+        throw new Error(JSON.stringify(error))
+      } else {
+        throw new Error(error)
+      }
+    }
+  }
+
+  // Aliases
+  create = this.modify;
+  update = this.modify;
+  delete = this.modify;
+  clone = this.modify;
   get = this.sfid;
   run = this.execute;
 }
