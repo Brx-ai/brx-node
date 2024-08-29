@@ -1,6 +1,6 @@
 {
   "name": "brx-node",
-  "version": "0.7.4-development",
+  "version": "0.7.5-development",
   "description": "Main BRX-AI Node interface",
   "type": "module",
   "main": "lib/esm/index.js",
@@ -47,7 +47,7 @@
   ],
   "exports": {
     ".": {
-      "require": "./lib/cjs/index.cjs",
+      "require": "./lib/cjs/src/index.cjs",
       "import": "./lib/esm/index.js",
       "types": "./lib/esm/*.d.ts",
       "default": "./lib/esm/*.js"
