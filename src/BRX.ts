@@ -266,8 +266,9 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
       const url = `${this._BASE_STRING}schema_from_id`;
       const response = await axios.post(url, { brxId: brxID }, {
         headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
           key: this.accessToken,
-          'Content-Type': 'application/json'
         }
       });
       const SchemaResponse: GetSchemaSuccess | GetSchemaError = response.data.httpResponse;
@@ -392,8 +393,9 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
       const url = this._MODIFY_CONN_STRING;
       const response = await axios.post(url, modifyRequest, {
         headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
           key: this.accessToken,
-          'Content-Type': 'application/json'
         }
       });
       const ModifyResponse: ModifySuccess | ModifyError = response.data.modifyBrxResponse.httpResponse;
