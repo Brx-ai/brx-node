@@ -1,6 +1,6 @@
 {
   "name": "brx-node",
-  "version": "0.7.7-development",
+  "version": "0.7.8-development",
   "description": "Main BRX-AI Node interface",
   "type": "module",
   "main": "lib/esm/index.js",
