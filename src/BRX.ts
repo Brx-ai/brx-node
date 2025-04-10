@@ -4,6 +4,7 @@ import { BRK } from './BRK.js';
 import { mapReplacer } from './Sockets.js';
 import { queryStreamRequest } from './oldFunctions.js';
 import { GetSchemaError, GetSchemaObject, GetSchemaSuccess, inputfield, objToMap, objToMapField, RunResult, brxModify, modifyBrxResponse, ModifyError, ModifySuccess, brxFieldData } from './Schema/Schema.js';
+import { ProjectRequest } from "./Project.js"
 
 const isNode = () => typeof process !== 'undefined' && !!process.versions && !!process.versions.node;
 
@@ -422,6 +423,53 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
         throw new Error(JSON.stringify(error))
       } else {
         throw new Error(error)
+      }
+    }
+  }
+
+  async project(projectRequest: ProjectRequest): Promise<any> {
+    try {
+      // Use "execute" as the default run mode if none is specified.
+      const runMode = projectRequest.options?.projectRunMode || 'execute';
+      const url =
+        this.send_local === true
+          ? `http://localhost:8080/v0/project/${runMode}`
+          : `https://api.brx.ai/v0/project/${runMode}`;
+
+      if (this.verbose) {
+        console.log(`Sending project request to: ${url}`);
+      }
+
+      const response = await axios.post(url, projectRequest, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          key: this.accessToken,
+        },
+      });
+
+      // Assuming the API response structure is similar to the modify method.
+      const projectResponse = response.data.projectResponse
+        ? response.data.projectResponse.httpResponse
+        : response.data;
+      if (projectResponse.isError) {
+        let errorMessage = '';
+        const errorPointer = projectResponse.statusMsg;
+        errorMessage =
+          errorPointer === 'no emails'
+            ? 'Unauthorized: Check BRK ID or BRK Access'
+            : errorPointer;
+        throw new Error(errorMessage);
+      }
+      return projectResponse;
+    } catch (error: AxiosError | any) {
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          throw new Error('Unauthorized: API Key Invalid');
+        }
+        throw new Error(JSON.stringify(error));
+      } else {
+        throw new Error(error);
       }
     }
   }
