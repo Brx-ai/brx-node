@@ -125,6 +125,19 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
     return NewBRK
   }
 
+  private _getAxiosHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    };
+    if (this.use_api_key) {
+      headers['key'] = this.accessToken;
+    } else {
+      headers['authorization'] = this.accessToken;
+    }
+    return headers;
+  }
+
   async initWebSocketConnection(accessToken: string): Promise<string> {
     const socketId: string = `${Math.floor(Math.random() * 100000)}`;
     this.webhookClosedFlags[socketId] = false;
@@ -266,11 +279,7 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
     try {
       const url = `${this._BASE_STRING}schema_from_id`;
       const response = await axios.post(url, { brxId: brxID }, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          key: this.accessToken,
-        }
+        headers: this._getAxiosHeaders(),
       });
       const SchemaResponse: GetSchemaSuccess | GetSchemaError = response.data.httpResponse;
       if (SchemaResponse.isError == true) {
@@ -393,11 +402,7 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
     try {
       const url = this._MODIFY_CONN_STRING;
       const response = await axios.post(url, modifyRequest, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          key: this.accessToken,
-        }
+        headers: this._getAxiosHeaders(),
       });
       const ModifyResponse: ModifySuccess | ModifyError = response.data.modifyBrxResponse.httpResponse;
       if (this.verbose) {
@@ -441,11 +446,7 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
       }
 
       const response = await axios.post(url, projectRequest, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          key: this.accessToken,
-        },
+        headers: this._getAxiosHeaders(),
       });
 
       // Assuming the API response structure is similar to the modify method.
