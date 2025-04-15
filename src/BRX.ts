@@ -60,7 +60,7 @@ export class BRX {
 
     if (verbose) {
       console.log('Top Level Options: ', options);
-      console.log('Using Access Token: ', this.accessToken);
+      console.log('Using Access Token: ', accessToken);
     }
 
     this._CONN_STRING = send_local ? 'ws://localhost:8080/query_stream' : 'wss://api.brx.ai/query_stream';
@@ -279,7 +279,11 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
     try {
       const url = `${this._BASE_STRING}schema_from_id`;
       const response = await axios.post(url, { brxId: brxID }, {
-        headers: this._getAxiosHeaders(),
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          key: this.accessToken,
+        },
       });
       const SchemaResponse: GetSchemaSuccess | GetSchemaError = response.data.httpResponse;
       if (SchemaResponse.isError == true) {
@@ -402,7 +406,11 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
     try {
       const url = this._MODIFY_CONN_STRING;
       const response = await axios.post(url, modifyRequest, {
-        headers: this._getAxiosHeaders(),
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          key: this.accessToken,
+        },
       });
       const ModifyResponse: ModifySuccess | ModifyError = response.data.modifyBrxResponse.httpResponse;
       if (this.verbose) {
@@ -446,7 +454,11 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
       }
 
       const response = await axios.post(url, projectRequest, {
-        headers: this._getAxiosHeaders(),
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          key: this.accessToken,
+        }
       });
 
       // Assuming the API response structure is similar to the modify method.
