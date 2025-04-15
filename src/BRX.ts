@@ -278,13 +278,17 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
   async sfid(brxID: string): Promise<BRK> {
     try {
       const url = `${this._BASE_STRING}schema_from_id`;
-      const response = await axios.post(url, { brxId: brxID }, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          key: this.accessToken,
-        },
-      });
+
+      const headerKey = this.use_api_key ? 'key' : 'authorization';
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        [headerKey]: this.accessToken,
+      };
+
+      const response = await axios.post(url, { brxId: brxID }, { headers });
+
       const SchemaResponse: GetSchemaSuccess | GetSchemaError = response.data.httpResponse;
       if (SchemaResponse.isError == true) {
         let ErrorMessage = ''
@@ -405,13 +409,17 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
   async modify(modifyRequest: brxModify): Promise<ModifySuccess | ModifyError> {
     try {
       const url = this._MODIFY_CONN_STRING;
-      const response = await axios.post(url, modifyRequest, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          key: this.accessToken,
-        },
-      });
+
+      const headerKey = this.use_api_key ? 'key' : 'authorization';
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        [headerKey]: this.accessToken,
+      };
+
+      const response = await axios.post(url, modifyRequest, { headers });
+
       const ModifyResponse: ModifySuccess | ModifyError = response.data.modifyBrxResponse.httpResponse;
       if (this.verbose) {
         console.log("MODIFY RESPONSE:")
@@ -453,13 +461,15 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
         console.log(`Sending project request to: ${url}`);
       }
 
-      const response = await axios.post(url, projectRequest, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          key: this.accessToken,
-        }
-      });
+      const headerKey = this.use_api_key ? 'key' : 'authorization';
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        [headerKey]: this.accessToken,
+      };
+
+      const response = await axios.post(url, projectRequest, { headers });
 
       // Assuming the API response structure is similar to the modify method.
       const projectResponse = response.data.projectResponse
