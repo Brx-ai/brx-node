@@ -4,7 +4,7 @@ import { BRK } from './BRK.js';
 import { mapReplacer } from './Sockets.js';
 import { queryStreamRequest } from './oldFunctions.js';
 import { GetSchemaError, GetSchemaObject, GetSchemaSuccess, inputfield, objToMap, objToMapField, RunResult, brxModify, modifyBrxResponse, ModifyError, ModifySuccess, brxFieldData } from './Schema/Schema.js';
-import { ProjectRequest } from "./Project.js"
+import { ProjectRequest, BRXProjectSession } from "./Project.js"
 
 const isNode = () => typeof process !== 'undefined' && !!process.versions && !!process.versions.node;
 
@@ -448,9 +448,24 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
     }
   }
 
-  async project(projectRequest: ProjectRequest): Promise<any> {
+  async project(
+    projectRequest: ProjectRequest,
+    options?: {
+      useSSE?: boolean;
+      onEvent?: (event: any) => void;
+    }
+  ): Promise<any> {
+    const useSSE = options?.useSSE || projectRequest.options?.sse;
+
+    if (useSSE) {
+      return this.projectSSE(projectRequest, options?.onEvent);
+    } else {
+      return this.projectREST(projectRequest);
+    }
+  }
+
+  private async projectREST(projectRequest: ProjectRequest): Promise<any> {
     try {
-      // Use "execute" as the default run mode if none is specified.
       const runMode = projectRequest.options?.projectRunMode || 'execute';
       const url =
         this.send_local === true
@@ -471,7 +486,6 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
 
       const response = await axios.post(url, projectRequest, { headers });
 
-      // Assuming the API response structure is similar to the modify method.
       const projectResponse = response.data.projectResponse
         ? response.data.projectResponse.httpResponse
         : response.data;
@@ -494,6 +508,40 @@ Using Package ${send_local ? 'Local' : 'Global'} Connection: brx.ai\nWARN: ${sen
       } else {
         throw new Error(error);
       }
+    }
+  }
+
+  private async projectSSE(
+    projectRequest: ProjectRequest,
+    onEvent?: (event: any) => void
+  ): Promise<BRXProjectSession> {
+    try {
+
+      const sessionId = `session_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+      const session = new BRXProjectSession(
+        sessionId,
+        this.accessToken,
+        projectRequest,
+        {
+          baseUrl: this.send_local ? 'http://localhost:8080' : 'https://api.brx.ai',
+          useApiKey: this.use_api_key,
+          verbose: this.verbose
+        }
+      );
+
+      if (onEvent && typeof onEvent === 'function') {
+        session.on('event', onEvent);
+      }
+
+      await session.connect();
+
+      return session;
+    } catch (error) {
+      if (this.verbose) {
+        console.error('Failed to create SSE session:', error);
+      }
+      throw error;
     }
   }
 
