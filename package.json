@@ -1,6 +1,6 @@
 {
   "name": "brx-node",
-  "version": "0.8.2-development",
+  "version": "0.8.3-development",
   "description": "Main BRX-AI Node interface",
   "type": "module",
   "main": "lib/esm/index.js",
@@ -84,9 +84,7 @@
   "dependencies": {
     "@types/ws": "^8.5.10",
     "axios": "^1.7.2",
-    "colors": "^1.4.0",
     "eslint-plugin-import": "^2.29.1",
-    "winston": "^3.17.0",
     "ws": "^8.16.0"
   }
 }
