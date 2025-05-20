@@ -1,9 +1,67 @@
 // We'll implement our own EventSource-like functionality using axios for Node.js
 // and native EventSource for browsers
 import axios from 'axios';
-import { SSEConfig } from '../utils/config';
-import logger from '../utils/logger';
-import { EventEmitter } from 'events';
+import { SSEConfig } from '../utils/config.js';
+import logger from '../utils/logger.js';
+
+// Browser-compatible EventEmitter implementation
+export class BrowserEventEmitter {
+  private events: { [key: string]: Function[] } = {};
+
+  on(event: string, listener: Function): this {
+    if (!this.events[event]) {
+      this.events[event] = [];
+    }
+    this.events[event].push(listener);
+    return this;
+  }
+
+  once(event: string, listener: Function): this {
+    const onceWrapper = (...args: any[]) => {
+      listener(...args);
+      this.off(event, onceWrapper);
+    };
+    return this.on(event, onceWrapper);
+  }
+
+  off(event: string, listener: Function): this {
+    if (this.events[event]) {
+      this.events[event] = this.events[event].filter(l => l !== listener);
+    }
+    return this;
+  }
+
+  emit(event: string, ...args: any[]): boolean {
+    if (this.events[event]) {
+      this.events[event].forEach(listener => listener(...args));
+      return true;
+    }
+    return false;
+  }
+
+  removeAllListeners(event?: string): this {
+    if (event) {
+      delete this.events[event];
+    } else {
+      this.events = {};
+    }
+    return this;
+  }
+}
+
+// Use Node.js EventEmitter if available, otherwise use our browser-compatible version
+let EventEmitter: any;
+try {
+  // Try to import Node.js EventEmitter
+  const events = require('events');
+  EventEmitter = events.EventEmitter;
+} catch (e) {
+  // If import fails, use our browser-compatible version
+  EventEmitter = BrowserEventEmitter;
+}
+
+// Export the EventEmitter for use in other files
+export { EventEmitter };
 
 // Check if we're in a browser environment
 const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';

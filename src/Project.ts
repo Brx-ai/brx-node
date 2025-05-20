@@ -49,8 +49,7 @@ export interface ProjectEvent {
     id?: string;
 }
 
-import { SSEClient, SSEConfig, SSEEvent, ConnectionStatus } from './SSEHandler/client';
-import { EventEmitter } from 'events';
+import { SSEClient, SSEConfig, SSEEvent, ConnectionStatus, EventEmitter } from './SSEHandler/client/index.js';
 
 export class BRXProjectSession extends EventEmitter {
     sessionId: string;
@@ -122,7 +121,7 @@ export class BRXProjectSession extends EventEmitter {
                 resolve();
             });
 
-            this.sseClient!.once('error', (error) => {
+            this.sseClient!.once('error', (error: Error) => {
                 clearTimeout(timeout);
                 reject(error);
             });
