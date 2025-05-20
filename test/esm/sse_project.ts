@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 // dotenv.config({ path: '../../.env' });
 
 // // Get API key from environment variables
-// const API_KEY = process.env.BRX_API_KEY || '';
+
 
 // if (!API_KEY) {
 //     console.error('Error: BRX_API_KEY environment variable is not set');
@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 // Create a BRX client
 const brx = new BRX(API_KEY, {
     verbose: true,
-    send_local: true, // Set to true for local development
+    send_local: false, // Set to true for local development
 });
 
 async function testSSEProject() {
