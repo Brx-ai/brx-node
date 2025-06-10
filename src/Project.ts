@@ -94,16 +94,15 @@ export class BRXProjectSession extends EventEmitter {
         }
         this.projectRequest.options.sse = true;
 
-        const runMode = this.projectRequest.options.projectRunMode || 'execute';
-
         const sseConfig: SSEConfig = {
-            url: `${this.baseUrl}/v0/project/${runMode}`,
+            url: `${this.baseUrl}/v0/project/execute`,
             method: 'POST',
             headers: this.getHeaders(),
             data: this.projectRequest,
             autoReconnect: true,
             reconnectDelay: 3000,
-            maxReconnectAttempts: 5
+            maxReconnectAttempts: 5,
+            eventTypes: ['connection', 'error', 'complete', 'output', 'await_response', 'workflow_stopped', 'job_status']
         };
 
         this.sseClient = new SSEClient(sseConfig);

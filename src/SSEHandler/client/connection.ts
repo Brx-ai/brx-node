@@ -3,6 +3,7 @@
 import axios from 'axios';
 import { SSEConfig } from '../utils/config.js';
 import logger from '../utils/logger.js';
+import { XhrSource, IEventSource } from './xhr-source.js';
 
 // Browser-compatible EventEmitter implementation
 export class BrowserEventEmitter {
@@ -113,7 +114,7 @@ export class SSEConnection extends EventEmitter {
   private events: SSEEvent[] = [];
   private connectionTimeout: NodeJS.Timeout | null = null;
   private lastEventId: string | null = null;
-  private eventSource: EventSource | null = null;
+  private eventSource: EventSource | IEventSource | null = null;
 
   constructor(config: SSEConfig) {
     super();
@@ -164,34 +165,177 @@ export class SSEConnection extends EventEmitter {
   }
 
   /**
-   * Connect using browser's native EventSource
+   * Connect using browser's native EventSource or XhrSource for POST
    */
   private async connectBrowser(): Promise<void> {
-    // For POST requests in browser, we need to first make a POST request
-    // to establish the connection, then use EventSource for the SSE stream
+    // For POST requests in browser, we'll use XhrSource
     if (this.config.method === 'POST' && this.config.data) {
       try {
-        // Make the initial POST request to establish the connection
+        logger.info('Using XhrSource for POST request with SSE');
+
+        // Prepare headers
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
           ...this.config.headers
         };
 
-        // Remove Accept header as it will be set by EventSource
-        delete headers['Accept'];
+        // Create XhrSource
+        const xhrSource = XhrSource(this.config.url, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(this.config.data),
+          timeout: this.config.connectionTimeout
+        }) as IEventSource;
 
-        // Make the POST request
-        await axios.post(this.config.url, this.config.data, { headers });
-
-        // Now connect with EventSource
-        this.setupBrowserEventSource();
+        // Set up event listeners for XhrSource
+        this.setupXhrSourceEventListeners(xhrSource);
       } catch (error) {
-        throw new Error(`Failed to make initial POST request: ${error}`);
+        throw new Error(`Failed to create XhrSource for POST request: ${error}`);
       }
     } else {
       // For GET requests, we can use EventSource directly
       this.setupBrowserEventSource();
     }
+  }
+
+  /**
+   * Set up event listeners for XhrSource
+   */
+  private setupXhrSourceEventListeners(xhrSource: IEventSource): void {
+    // Store the XhrSource as eventSource for consistent API
+    this.eventSource = xhrSource as any;
+
+    // Handle open event
+    xhrSource.addEventListener('open', () => {
+      if (this.connectionTimeout) {
+        clearTimeout(this.connectionTimeout);
+        this.connectionTimeout = null;
+      }
+
+      this.reconnectAttempts = 0;
+      this.setStatus(ConnectionStatus.CONNECTED);
+      logger.info('Connected to SSE endpoint using XhrSource');
+      this.emit('connected');
+    });
+
+    // Handle error event
+    xhrSource.addEventListener('error', (event: any) => {
+      logger.error('XhrSource connection error', event);
+      this.setStatus(ConnectionStatus.ERROR);
+      this.emit('error', new Error(event.reason || 'XhrSource error'));
+
+      if (this.config.autoReconnect) {
+        this.attemptReconnect();
+      }
+    });
+
+    // Handle close event
+    xhrSource.addEventListener('close', () => {
+      logger.info('XhrSource connection closed');
+      this.setStatus(ConnectionStatus.DISCONNECTED);
+
+      if (this.config.autoReconnect) {
+        this.attemptReconnect();
+      }
+    });
+
+    // Handle message event
+    xhrSource.addEventListener('message', (event: any) => {
+      try {
+        let parsedData;
+        try {
+          parsedData = JSON.parse(event.data);
+        } catch (parseError) {
+          // If JSON parsing fails, use the raw data
+          parsedData = event.data;
+        }
+
+        // Create the event
+        const sseEvent: SSEEvent = {
+          id: undefined, // XhrSource doesn't support lastEventId
+          type: 'message',
+          data: parsedData,
+          timestamp: Date.now()
+        };
+
+        // Store the event
+        this.events.push(sseEvent);
+
+        // Emit the event
+        logger.debug(`Received message event via XhrSource: ${JSON.stringify(sseEvent)}`);
+        this.emit('event', sseEvent);
+        this.emit('message', sseEvent);
+      } catch (error) {
+        logger.error(`Failed to process event data from XhrSource: ${event.data}`, error);
+      }
+    });
+
+    // Listen for custom events
+    if (this.config.eventTypes && this.config.eventTypes.length > 0) {
+      this.config.eventTypes.forEach(eventType => {
+        xhrSource.addEventListener(eventType, (event: any) => {
+          try {
+            let parsedData;
+            try {
+              parsedData = JSON.parse(event.data);
+            } catch (parseError) {
+              // If JSON parsing fails, use the raw data
+              parsedData = event.data;
+            }
+
+            // Create the event
+            const sseEvent: SSEEvent = {
+              id: undefined,
+              type: eventType,
+              data: parsedData,
+              timestamp: Date.now()
+            };
+
+            // Store the event
+            this.events.push(sseEvent);
+
+            // Emit the event
+            logger.debug(`Received ${eventType} event via XhrSource: ${JSON.stringify(sseEvent)}`);
+            this.emit('event', sseEvent);
+            this.emit(eventType, sseEvent);
+          } catch (error) {
+            logger.error(`Failed to process event data from XhrSource: ${event.data}`, error);
+          }
+        });
+      });
+    }
+
+    // Also listen for any other events that might be sent
+    const commonEventTypes = ['connection', 'error', 'complete', 'output', 'await_response', 'workflow_stopped', 'job_status'];
+    commonEventTypes.forEach(eventType => {
+      if (!this.config.eventTypes || !this.config.eventTypes.includes(eventType)) {
+        xhrSource.addEventListener(eventType, (event: any) => {
+          try {
+            let parsedData;
+            try {
+              parsedData = JSON.parse(event.data);
+            } catch (parseError) {
+              parsedData = event.data;
+            }
+
+            const sseEvent: SSEEvent = {
+              id: undefined,
+              type: eventType,
+              data: parsedData,
+              timestamp: Date.now()
+            };
+
+            this.events.push(sseEvent);
+            logger.debug(`Received ${eventType} event via XhrSource: ${JSON.stringify(sseEvent)}`);
+            this.emit('event', sseEvent);
+            this.emit(eventType, sseEvent);
+          } catch (error) {
+            logger.error(`Failed to process ${eventType} event data from XhrSource: ${event.data}`, error);
+          }
+        });
+      }
+    });
   }
 
   /**
@@ -221,7 +365,7 @@ export class SSEConnection extends EventEmitter {
     this.eventSource = new EventSource(url, options);
 
     // Set up event listeners
-    this.eventSource.onopen = () => {
+    (this.eventSource as EventSource).onopen = () => {
       if (this.connectionTimeout) {
         clearTimeout(this.connectionTimeout);
         this.connectionTimeout = null;
@@ -233,7 +377,7 @@ export class SSEConnection extends EventEmitter {
       this.emit('connected');
     };
 
-    this.eventSource.onerror = (error) => {
+    (this.eventSource as EventSource).onerror = (error: Event) => {
       logger.error('SSE connection error', error);
       this.setStatus(ConnectionStatus.ERROR);
       this.emit('error', new Error('EventSource error'));
@@ -243,7 +387,7 @@ export class SSEConnection extends EventEmitter {
       }
     };
 
-    this.eventSource.onmessage = (event) => {
+    (this.eventSource as EventSource).onmessage = (event: MessageEvent) => {
       try {
         const parsedData = JSON.parse(event.data);
 
@@ -275,7 +419,7 @@ export class SSEConnection extends EventEmitter {
     // Listen for custom events
     if (this.config.eventTypes && this.config.eventTypes.length > 0) {
       this.config.eventTypes.forEach(eventType => {
-        this.eventSource!.addEventListener(eventType, (event: any) => {
+        (this.eventSource as EventSource).addEventListener(eventType, (event: any) => {
           try {
             const parsedData = JSON.parse(event.data);
 
@@ -399,7 +543,8 @@ export class SSEConnection extends EventEmitter {
       this.connectionTimeout = null;
     }
 
-    if (isBrowser && this.eventSource) {
+    if (this.eventSource) {
+      // Both native EventSource and our XhrSource implementation have a close method
       this.eventSource.close();
       this.eventSource = null;
       logger.info('Disconnected from SSE endpoint');

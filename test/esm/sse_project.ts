@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 // Create a BRX client
 const brx = new BRX(API_KEY, {
     verbose: true,
-    send_local: false, // Set to true for local development
+    send_local: true, // Set to true for local development
 });
 
 async function testSSEProject() {
