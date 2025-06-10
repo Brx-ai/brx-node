@@ -8,24 +8,39 @@
  * Parse an SSE message into a MessageEvent
  */
 function sseevent(message: string): MessageEvent {
-    let type = 'message', start = 0;
-    if (message.startsWith('event: ')) {
-        start = message.indexOf('\n');
-        type = message.slice(7, start);
+    let type = 'message';
+    let data = '';
+    let id = '';
+    let retry: number | null = null;
+
+    // Split the message into lines
+    const lines = message.split('\n');
+
+    for (const line of lines) {
+        if (line.startsWith('event:')) {
+            type = line.substring(6).trim();
+        } else if (line.startsWith('data:')) {
+            // Handle data lines - there can be multiple data lines
+            const lineData = line.substring(5).trim();
+            if (data) {
+                data += '\n' + lineData;
+            } else {
+                data = lineData;
+            }
+        } else if (line.startsWith('id:')) {
+            id = line.substring(3).trim();
+        } else if (line.startsWith('retry:')) {
+            retry = parseInt(line.substring(6).trim(), 10);
+        }
     }
 
-    // Handle data field properly
-    const dataStart = message.indexOf('data: ');
-    if (dataStart !== -1) {
-        start = dataStart + 6; // Length of 'data: '
-        let data = message.slice(start).trim();
-        return new MessageEvent(type, { data: data });
+    // Create the MessageEvent with proper properties
+    const eventInit: any = { data: data };
+    if (id) {
+        eventInit.lastEventId = id;
     }
 
-    // Fallback for malformed messages
-    start = message.indexOf(': ', start) + 2;
-    let data = message.slice(start, message.length);
-    return new MessageEvent(type, { data: data });
+    return new MessageEvent(type, eventInit);
 }
 
 /**
@@ -75,11 +90,13 @@ export function XhrSource(url: string, opts: XhrSourceOptions = {}): EventTarget
             // Check if we have a successful response
             if (xhr.status >= 200 && xhr.status < 300) {
                 ongoing = true;
+                console.debug('[XHR-SSE] Connection opened, status:', xhr.status);
                 eventTarget.dispatchEvent(new Event('open', {
                     bubbles: false,
                     cancelable: false,
                 }));
             } else if (xhr.status >= 400) {
+                console.error('[XHR-SSE] HTTP error:', xhr.status, xhr.statusText);
                 eventTarget.dispatchEvent(new CloseEvent('error', {
                     bubbles: false,
                     cancelable: false,
@@ -89,18 +106,32 @@ export function XhrSource(url: string, opts: XhrSourceOptions = {}): EventTarget
             }
         }
 
+        // Debug: Log the current response text length and start position
+        console.debug('[XHR-SSE] Progress - Response length:', xhr.responseText.length, 'Start position:', start);
+
         // Process SSE messages
         var i, chunk;
         while ((i = xhr.responseText.indexOf('\n\n', start)) >= 0) {
             chunk = xhr.responseText.slice(start, i);
             start = i + 2;
+
+            console.debug('[XHR-SSE] Found chunk:', JSON.stringify(chunk));
+
             if (chunk.length) {
                 try {
-                    eventTarget.dispatchEvent(sseevent(chunk));
+                    const event = sseevent(chunk);
+                    console.debug('[XHR-SSE] Dispatching event:', event.type, 'Data:', event.data);
+                    eventTarget.dispatchEvent(event);
                 } catch (error) {
-                    console.error('Error parsing SSE message:', error, 'Chunk:', chunk);
+                    console.error('[XHR-SSE] Error parsing SSE message:', error, 'Chunk:', chunk);
                 }
             }
+        }
+
+        // Debug: Log any remaining text that hasn't been processed
+        if (start < xhr.responseText.length) {
+            const remaining = xhr.responseText.slice(start);
+            console.debug('[XHR-SSE] Remaining unprocessed text:', JSON.stringify(remaining));
         }
     };
 
