@@ -45,7 +45,7 @@ export const defaultConfig: SSEConfig = {
   headers: {},
   data: null,
   method: 'GET',
-  autoReconnect: true,
+  autoReconnect: false,
   reconnectDelay: 3000,
   maxReconnectAttempts: 5,
   connectionTimeout: 30000,

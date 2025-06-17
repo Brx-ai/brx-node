@@ -9,7 +9,7 @@ import { XhrSource, IEventSource } from './xhr-source.js';
 export class BrowserEventEmitter {
   private events: { [key: string]: Function[] } = {};
 
-  on(event: string, listener: Function): this {
+  on(event: SSEventType, listener: Function): this {
     if (!this.events[event]) {
       this.events[event] = [];
     }
@@ -17,7 +17,7 @@ export class BrowserEventEmitter {
     return this;
   }
 
-  once(event: string, listener: Function): this {
+  once(event: SSEventType, listener: Function): this {
     const onceWrapper = (...args: any[]) => {
       listener(...args);
       this.off(event, onceWrapper);
@@ -103,6 +103,8 @@ export enum ConnectionStatus {
   ERROR = 'error'
 }
 
+export type SSEventType = 'job_completed' | 'job_failed' | 'job_retry' | 'project_completed' | 'status_update' | 'await_response' | 'output_data'
+
 /**
  * SSE Connection class
  */
@@ -119,6 +121,7 @@ export class SSEConnection extends EventEmitter {
   constructor(config: SSEConfig) {
     super();
     this.config = config;
+    this.config.autoReconnect = false;
   }
 
   /**
@@ -132,7 +135,7 @@ export class SSEConnection extends EventEmitter {
     this.setStatus(ConnectionStatus.CONNECTING);
 
     try {
-      logger.info(`Connecting to SSE endpoint: ${this.config.url}`);
+      // logger.info(`Connecting to SSE endpoint: ${this.config.url}`);
 
       // Set connection timeout
       this.connectionTimeout = setTimeout(() => {
@@ -171,7 +174,7 @@ export class SSEConnection extends EventEmitter {
     // For POST requests in browser, we'll use XhrSource
     if (this.config.method === 'POST' && this.config.data) {
       try {
-        logger.info('Using XhrSource for POST request with SSE');
+        // logger.info('Using XhrSource for POST request with SSE');
 
         // Prepare headers
         const headers: Record<string, string> = {
@@ -215,7 +218,7 @@ export class SSEConnection extends EventEmitter {
 
       this.reconnectAttempts = 0;
       this.setStatus(ConnectionStatus.CONNECTED);
-      logger.info('Connected to SSE endpoint using XhrSource');
+      // logger.info('Connected to SSE endpoint using XhrSource');
       this.emit('connected');
     });
 
@@ -232,7 +235,7 @@ export class SSEConnection extends EventEmitter {
 
     // Handle close event
     xhrSource.addEventListener('close', () => {
-      logger.info('XhrSource connection closed');
+      // logger.info('XhrSource connection closed');
       this.setStatus(ConnectionStatus.DISCONNECTED);
 
       if (this.config.autoReconnect) {
@@ -263,7 +266,7 @@ export class SSEConnection extends EventEmitter {
         this.events.push(sseEvent);
 
         // Emit the event
-        logger.debug(`Received message event via XhrSource: ${JSON.stringify(sseEvent)}`);
+        // logger.debug(`Received message event via XhrSource: ${JSON.stringify(sseEvent)}`);
         this.emit('event', sseEvent);
         this.emit('message', sseEvent);
       } catch (error) {
@@ -296,7 +299,7 @@ export class SSEConnection extends EventEmitter {
             this.events.push(sseEvent);
 
             // Emit the event
-            logger.debug(`Received ${eventType} event via XhrSource: ${JSON.stringify(sseEvent)}`);
+            // logger.debug(`Received ${eventType} event via XhrSource: ${JSON.stringify(sseEvent)}`);
             this.emit('event', sseEvent);
             this.emit(eventType, sseEvent);
           } catch (error) {
@@ -307,7 +310,7 @@ export class SSEConnection extends EventEmitter {
     }
 
     // Also listen for any other events that might be sent
-    const commonEventTypes = ['connection', 'error', 'complete', 'output', 'await_response', 'workflow_stopped', 'job_status'];
+    const commonEventTypes = ['connection', 'error', 'job_completed', 'job_failed', 'job_retry', 'project_completed', 'status_update', 'await_response', 'output_data'];
     commonEventTypes.forEach(eventType => {
       if (!this.config.eventTypes || !this.config.eventTypes.includes(eventType)) {
         xhrSource.addEventListener(eventType, (event: any) => {
@@ -327,7 +330,7 @@ export class SSEConnection extends EventEmitter {
             };
 
             this.events.push(sseEvent);
-            logger.debug(`Received ${eventType} event via XhrSource: ${JSON.stringify(sseEvent)}`);
+            // logger.debug(`Received ${eventType} event via XhrSource: ${JSON.stringify(sseEvent)}`);
             this.emit('event', sseEvent);
             this.emit(eventType, sseEvent);
           } catch (error) {
@@ -373,7 +376,7 @@ export class SSEConnection extends EventEmitter {
 
       this.reconnectAttempts = 0;
       this.setStatus(ConnectionStatus.CONNECTED);
-      logger.info('Connected to SSE endpoint');
+      // logger.info('Connected to SSE endpoint');
       this.emit('connected');
     };
 
@@ -408,7 +411,7 @@ export class SSEConnection extends EventEmitter {
         }
 
         // Emit the event
-        logger.debug(`Received message event: ${JSON.stringify(sseEvent)}`);
+        // logger.debug(`Received message event: ${JSON.stringify(sseEvent)}`);
         this.emit('event', sseEvent);
         this.emit('message', sseEvent);
       } catch (error) {
@@ -440,7 +443,7 @@ export class SSEConnection extends EventEmitter {
             }
 
             // Emit the event
-            logger.debug(`Received ${eventType} event: ${JSON.stringify(sseEvent)}`);
+            // logger.debug(`Received ${eventType} event: ${JSON.stringify(sseEvent)}`);
             this.emit('event', sseEvent);
             this.emit(eventType, sseEvent);
           } catch (error) {
@@ -508,7 +511,7 @@ export class SSEConnection extends EventEmitter {
       }
     }
 
-    logger.debug(`Connecting to SSE endpoint with ${method.toUpperCase()} method: ${this.config.url}`);
+    // logger.debug(`Connecting to SSE endpoint with ${method.toUpperCase()} method: ${this.config.url}`);
 
     // Make the request
     const response = await axios(requestConfig);
@@ -530,7 +533,7 @@ export class SSEConnection extends EventEmitter {
     // Connection established
     this.reconnectAttempts = 0;
     this.setStatus(ConnectionStatus.CONNECTED);
-    logger.info('Connected to SSE endpoint');
+    // logger.info('Connected to SSE endpoint');
     this.emit('connected');
   }
 
@@ -547,11 +550,11 @@ export class SSEConnection extends EventEmitter {
       // Both native EventSource and our XhrSource implementation have a close method
       this.eventSource.close();
       this.eventSource = null;
-      logger.info('Disconnected from SSE endpoint');
+      // logger.info('Disconnected from SSE endpoint');
     } else if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;
-      logger.info('Disconnected from SSE endpoint');
+      // logger.info('Disconnected from SSE endpoint');
     }
 
     this.setStatus(ConnectionStatus.DISCONNECTED);
@@ -598,7 +601,7 @@ export class SSEConnection extends EventEmitter {
 
     try {
       fs.writeFileSync(savePath, JSON.stringify(this.events, null, 2));
-      logger.info(`Events saved to ${savePath}`);
+      // logger.info(`Events saved to ${savePath}`);
     } catch (error) {
       logger.error(`Failed to save events to ${savePath}`, error);
     }
@@ -649,7 +652,7 @@ export class SSEConnection extends EventEmitter {
               }
 
               // Emit the event
-              logger.debug(`Received ${eventType} event: ${JSON.stringify(event)}`);
+              // logger.debug(`Received ${eventType} event: ${JSON.stringify(event)}`);
               this.emit('event', event);
               this.emit(eventType, event);
 
@@ -696,7 +699,7 @@ export class SSEConnection extends EventEmitter {
 
     // Listen for end events
     stream.on('end', () => {
-      logger.info('SSE connection closed');
+      // logger.info('SSE connection closed');
       this.setStatus(ConnectionStatus.DISCONNECTED);
 
       if (this.config.autoReconnect) {
@@ -720,7 +723,7 @@ export class SSEConnection extends EventEmitter {
     this.setStatus(ConnectionStatus.RECONNECTING);
 
     const delay = this.config.reconnectDelay || 3000;
-    logger.info(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    // logger.info(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     setTimeout(() => {
       this.connect();
@@ -733,6 +736,6 @@ export class SSEConnection extends EventEmitter {
   private setStatus(status: ConnectionStatus): void {
     this.status = status;
     this.emit('status', status);
-    logger.debug(`Connection status: ${status}`);
+    // logger.debug(`Connection status: ${status}`);
   }
 }

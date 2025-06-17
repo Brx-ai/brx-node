@@ -27,7 +27,7 @@ export class SSEClient extends EventEmitter {
    * Connect to the SSE endpoint
    */
   public connect(): void {
-    logger.info('Starting SSE client connection');
+    // logger.info('Starting SSE client connection');
     this.connection.connect();
   }
 
@@ -35,7 +35,7 @@ export class SSEClient extends EventEmitter {
    * Disconnect from the SSE endpoint
    */
   public disconnect(): void {
-    logger.info('Disconnecting SSE client');
+    // logger.info('Disconnecting SSE client');
     this.connection.disconnect();
   }
 
@@ -66,7 +66,7 @@ export class SSEClient extends EventEmitter {
    */
   public async triggerEvent(url: string, data: any, headers?: Record<string, string>): Promise<void> {
     try {
-      logger.info(`Triggering event at ${url}`);
+      // logger.info(`Triggering event at ${url}`);
 
       const response = await axios.post(url, data, {
         headers: {
@@ -75,7 +75,7 @@ export class SSEClient extends EventEmitter {
         }
       });
 
-      logger.info(`Event triggered successfully: ${response.status}`);
+      // logger.info(`Event triggered successfully: ${response.status}`);
     } catch (error) {
       logger.error('Failed to trigger event', error);
       throw error;
@@ -88,13 +88,13 @@ export class SSEClient extends EventEmitter {
   private setupEventListeners(): void {
     // Connection status changes
     this.connection.on('status', (status: ConnectionStatus) => {
-      logger.info(`Connection status changed: ${status}`);
+      // logger.info(`Connection status changed: ${status}`);
       this.emit('status', status);
     });
 
     // Connection established
     this.connection.on('connected', () => {
-      logger.info('Connection established');
+      // logger.info('Connection established');
       this.emit('connected');
     });
 
@@ -106,7 +106,7 @@ export class SSEClient extends EventEmitter {
 
     // Event received
     this.connection.on('event', (event: SSEEvent) => {
-      logger.info(`Event received: ${event.type}`);
+      // logger.info(`Event received: ${event.type}`);
       this.emit('event', event);
       // Also emit the specific event type
       this.emit(event.type, event);
