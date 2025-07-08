@@ -15,7 +15,6 @@
 - 🔄 **WebSocket Support**: Efficient bi-directional communication
 - 🛠️ **CRUD Operations**: Create, read, update, delete, and clone BRKs
 - 🌐 **Cross-Platform**: Works in both Node.js and browser environments
-- 🔐 **Flexible Authentication**: API key or Firebase auth support
 - 🔌 **Auto-Reconnection**: Robust connection management with retry logic
 - 📝 **TypeScript Support**: Full type definitions included
 
@@ -76,7 +75,7 @@ new BRX(accessToken: string, options?: BRXOptions)
 ```
 
 **Parameters:**
-- `accessToken`: Your BRX.ai API key or Firebase auth token
+- `accessToken`: Your BRX.ai API key or internal auth token
 - `options`: Configuration options
 
 **Options:**
@@ -443,7 +442,7 @@ const results: RunResult[] = await brx.run(myBRK);
 
 ```typescript
 interface BRXOptions {
-  use_brx_key?: boolean;     // Use BRX API key vs Firebase auth
+  use_brx_key?: boolean;     // Use BRX API key vs internal auth
   verbose?: boolean;         // Enable debug logging
   send_local?: boolean;      // Connect to local development server
   force_client?: boolean;    // Force browser mode in Node.js
